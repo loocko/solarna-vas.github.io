@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ThingSpeak Charts</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
+</head>
+<body>
+    <select id="timeSpan" onchange="fetchData()">
+        <option value="1d">1 Day</option>
+        <option value="1w">1 Week</option>
+        <option value="1m">1 Month</option>
+    </select>
+
+    <canvas id="chart1"></canvas>
+    <canvas id="chart2"></canvas>
+    <canvas id="chart3"></canvas>
+
+    <script>
+        let chartInstances = {};
+
+        function createChart(canvasId, labels, data, label, bgColor, borderColor) {
+            if (chartInstances[canvasId]) {
+                chartInstances[canvasId].destroy();
+            }
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            chartInstances[canvasId] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels.map(label => moment(label).format('YYYY-MM-DD HH:mm:ss')),
+                    datasets: [{
+                        label: label,
+                        data: data,
+                        fill: false,
+                        backgroundColor: bgColor,
+                        borderColor: borderColor,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                parser: 'YYYY-MM-DD HH:mm:ss',
+                                tooltipFormat: 'll HH:mm',
+                                unit: 'day',
+                                displayFormats: {
+                                    'day': 'MMM D'
+                                }
+                            }
+                        },
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function fetchData() {
+            const span = document.getElementById('timeSpan').value;
+            const numOfEntries = span === '1d' ? 144 : span === '1w' ? 1008 : 4320;
+
+            fetch(`https://api.thingspeak.com/channels/2305820/feeds.json?results=${numOfEntries}`)
+                .then(response => response.json())
+                .then(data => {
+                    const labels = data.feeds.map(feed => feed.created_at);
+                    const temp1Data = data.feeds.map(feed => feed.field1);
+                    const temp2Data = data.feeds.map(feed => feed.field2);
+                    const temp3Data = data.feeds.map(feed => feed.field3);
+
+                    createChart('chart1', labels, temp1Data, 'Temperature 1', 'rgba(255, 99, 132, 0.2)', 'rgba(255, 99, 132, 1)');
+                    createChart('chart2', labels, temp2Data, 'Temperature 2', 'rgba(54, 162, 235, 0.2)', 'rgba(54, 162, 235, 1)');
+                    createChart('chart3', labels, temp3Data, 'Temperature 3', 'rgba(255, 206, 86, 0.2)', 'rgba(255, 206, 86, 1)');
+                });
+        }
+
+        window.onload = fetchData;
+    </script>
+</body>
+</html>
